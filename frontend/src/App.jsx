@@ -7,47 +7,34 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [currentImage, setCurrentImage] = useState(null);
   const [currentPrediction, setCurrentPrediction] = useState(null);
-  const [stats, setStats] = useState({ total: 0, clean: 0, attack: 0 });
-  const [simulationProgress, setSimulationProgress] = useState({ current: 0, total: 20 });
+  const [currentConfidence, setCurrentConfidence] = useState(0);
+  const [simProgress, setSimProgress] = useState({ current: 0, total: 20 });
   
   // Upload states
   const [uploadPreview, setUploadPreview] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   
-  // Camera states
-  const videoRef = useRef(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [cameraPrediction, setCameraPrediction] = useState(null);
-  
-  // Interval ref for simulation
   const simulationInterval = useRef(null);
+  const logsEndRef = useRef(null);
 
-  // Start camera
+  // Auto-scroll logs
   useEffect(() => {
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          setCameraActive(true);
-        }
-      } catch (err) {
-        addLog('ERROR', 'Camera access denied', 'system');
-      }
-    };
-    startCamera();
-  }, []);
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs]);
 
   // Add log entry
-  const addLog = (type, message, prediction = null) => {
+  const addLog = (type, message, prediction = null, confidence = null) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prev => [{
       id: Date.now(),
       time: timestamp,
       type: type,
       message: message,
-      prediction: prediction
+      prediction: prediction,
+      confidence: confidence
     }, ...prev].slice(0, 100));
   };
 
@@ -74,28 +61,17 @@ function App() {
     const result = await fetchNextImage();
     
     if (result) {
-      // Update current image display
-      setCurrentImage(result.image_path);
+      setCurrentImage(`http://localhost:8000${result.image_url}`);
       setCurrentPrediction(result.prediction);
-      setSimulationProgress({ current: result.index, total: result.total });
+      setCurrentConfidence(result.confidence);
+      setSimProgress({ current: result.index, total: result.total });
       
-      // Update stats
-      setStats(prev => {
-        const newStats = { ...prev, total: prev.total + 1 };
-        if (result.prediction === 'attack') {
-          newStats.attack += 1;
-        } else {
-          newStats.clean += 1;
-        }
-        return newStats;
-      });
-      
-      // Add log entry
       const confidencePercent = Math.round(result.confidence * 100);
       addLog(
         result.prediction.toUpperCase(),
         `${result.filename} → ${result.prediction.toUpperCase()} (${confidencePercent}%)`,
-        result.prediction
+        result.prediction,
+        result.confidence
       );
     }
   };
@@ -107,17 +83,13 @@ function App() {
     setIsSimulating(true);
     addLog('INFO', 'Simulation started - infinite loop mode', null);
     
-    // Reset stats
-    setStats({ total: 0, clean: 0, attack: 0 });
-    setCurrentPrediction(null);
-    
     // Process first image immediately
     await processSimulationStep();
     
     // Set interval for subsequent images
     simulationInterval.current = setInterval(async () => {
       await processSimulationStep();
-    }, 1500); // 1.5 seconds delay
+    }, 1500);
   };
 
   // Stop simulation
@@ -133,9 +105,10 @@ function App() {
   // Reset logs
   const resetLogs = () => {
     setLogs([]);
-    setStats({ total: 0, clean: 0, attack: 0 });
-    setCurrentPrediction(null);
     setCurrentImage(null);
+    setCurrentPrediction(null);
+    setCurrentConfidence(0);
+    setSimProgress({ current: 0, total: 20 });
     addLog('INFO', 'Logs cleared', null);
   };
 
@@ -162,133 +135,111 @@ function App() {
       addLog(
         result.prediction.toUpperCase(),
         `Upload: ${file.name} → ${result.prediction.toUpperCase()} (${Math.round(result.confidence * 100)}%)`,
-        result.prediction
+        result.prediction,
+        result.confidence
       );
     } catch (error) {
       addLog('ERROR', `Upload failed: ${file.name}`, null);
     } finally {
       setIsUploading(false);
-      setTimeout(() => setUploadPreview(null), 3000);
     }
   };
 
   return (
     <div className="dashboard">
-      {/* Main Layout */}
-      <div className="main-grid">
+      <div className="main-layout">
         
-        {/* Left Panel - Video Feed */}
-        <div className="video-panel">
-          <div className="panel-title">📹 DRONE CAMERA FEED</div>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="video-feed"
-          />
-          {cameraPrediction && (
-            <div className={`camera-prediction ${cameraPrediction}`}>
-              {cameraPrediction.toUpperCase()}
+        {/* LEFT PANEL - IMAGE DISPLAY */}
+        <div className="image-panel">
+          <div className="panel-header">🎯 CURRENT IMAGE</div>
+          <div className="image-container">
+            {currentImage ? (
+              <>
+                <img src={currentImage} alt="Current" className="current-image" />
+                <div className={`prediction-overlay ${currentPrediction}`}>
+                  {currentPrediction === 'attack' ? '🔴 ATTACK DETECTED' : '🟢 CLEAN'}
+                  <span className="confidence">{Math.round(currentConfidence * 100)}%</span>
+                </div>
+              </>
+            ) : (
+              <div className="no-image">No image being processed</div>
+            )}
+          </div>
+          
+          {/* Simulation Progress */}
+          {simProgress.current > 0 && (
+            <div className="sim-progress">
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${(simProgress.current / simProgress.total) * 100}%` }}></div>
+              </div>
+              <div className="progress-text">Image {simProgress.current} of {simProgress.total}</div>
             </div>
           )}
         </div>
         
-        {/* Right Panel - Simulation & Upload */}
-        <div className="sim-panel">
+        {/* RIGHT PANEL - CONTROLS & UPLOAD */}
+        <div className="controls-panel">
           
           {/* Upload Section */}
-          <div className="upload-section">
-            <div className="panel-title">📤 UPLOAD IMAGE</div>
+          <div className="section upload-section">
+            <div className="section-title">📤 UPLOAD IMAGE</div>
             <label className="upload-btn">
               CHOOSE FILE
               <input type="file" accept="image/*" onChange={handleImageUpload} hidden />
             </label>
             {isUploading && <div className="upload-status">Analyzing...</div>}
-            {uploadResult && (
-              <div className={`upload-result ${uploadResult.prediction}`}>
-                {uploadResult.prediction === 'attack' ? '🔴 ATTACK DETECTED' : '🟢 CLEAN'}
-                <span>Confidence: {Math.round(uploadResult.confidence * 100)}%</span>
+            {uploadPreview && (
+              <div className="upload-preview">
+                <img src={uploadPreview} alt="Preview" />
+                {uploadResult && (
+                  <div className={`upload-result ${uploadResult.prediction}`}>
+                    {uploadResult.prediction === 'attack' ? '🔴 ATTACK' : '🟢 CLEAN'}
+                    <span className="upload-confidence">{Math.round(uploadResult.confidence * 100)}%</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
           
           {/* Simulation Controls */}
-          <div className="sim-controls">
-            <div className="panel-title">🎮 SIMULATION CONTROL</div>
+          <div className="section controls-section">
+            <div className="section-title">🎮 SIMULATION</div>
             <div className="button-group">
-              <button 
-                className="btn-start" 
-                onClick={startSimulation}
-                disabled={isSimulating}
-              >
-                ▶ RUN SIMULATION
+              <button className="btn-start" onClick={startSimulation} disabled={isSimulating}>
+                ▶ RUN
               </button>
-              <button 
-                className="btn-stop" 
-                onClick={stopSimulation}
-                disabled={!isSimulating}
-              >
+              <button className="btn-stop" onClick={stopSimulation} disabled={!isSimulating}>
                 ⏹ STOP
               </button>
               <button className="btn-reset" onClick={resetLogs}>
-                🔄 RESET LOGS
+                🔄 RESET
               </button>
             </div>
           </div>
-          
-          {/* Current Image Display */}
-          <div className="current-image">
-            <div className="panel-title">🖼 CURRENT IMAGE</div>
-            <div className="image-container">
-              {currentImage ? (
-                <>
-                  <img src={`http://localhost:8000${currentImage}`} alt="Current" />
-                  <div className={`prediction-badge ${currentPrediction}`}>
-                    {currentPrediction === 'attack' ? '🔴 ATTACK' : '🟢 CLEAN'}
-                  </div>
-                </>
-              ) : (
-                <div className="no-image">No image processing</div>
-              )}
-            </div>
-          </div>
-          
-          {/* Statistics */}
-          <div className="stats-panel">
-            <div className="panel-title">📊 STATISTICS</div>
-            <div className="stats-grid">
-              <div className="stat">TOTAL: {stats.total}</div>
-              <div className="stat clean">CLEAN: {stats.clean}</div>
-              <div className="stat attack">ATTACK: {stats.attack}</div>
-              <div className="stat">ACCURACY: {stats.total > 0 ? Math.round((stats.clean / stats.total) * 100) : 0}%</div>
-            </div>
-          </div>
         </div>
-        
       </div>
       
-      {/* Bottom - Terminal Log */}
-      <div className="terminal-panel">
-        <div className="terminal-header">
+      {/* BOTTOM - TERMINAL LOGS */}
+      <div className="logs-panel">
+        <div className="logs-header">
           <span>🔻 SIMULATION LOG</span>
-          <span className="terminal-status">
+          <span className={`sim-status ${isSimulating ? 'running' : 'stopped'}`}>
             {isSimulating ? '🟢 RUNNING' : '⚫ STOPPED'}
-            {simulationProgress.current > 0 && ` | IMAGE ${simulationProgress.current}/${simulationProgress.total}`}
           </span>
         </div>
-        <div className="terminal-body">
+        <div className="logs-body">
           {logs.length === 0 ? (
-            <div className="terminal-line"> System ready. Click RUN SIMULATION to start...</div>
+            <div className="log-entry info"> System ready. Click RUN to start simulation...</div>
           ) : (
             logs.map(log => (
-              <div key={log.id} className={`terminal-line ${log.type === 'ATTACK' ? 'attack' : log.type === 'CLEAN' ? 'clean' : 'info'}`}>
-                <span className="terminal-time">[{log.time}]</span>
-                <span className="terminal-type">[{log.type}]</span>
-                <span className="terminal-msg">{log.message}</span>
+              <div key={log.id} className={`log-entry ${log.type === 'ATTACK' ? 'attack' : log.type === 'CLEAN' ? 'clean' : 'info'}`}>
+                <span className="log-time">[{log.time}]</span>
+                <span className="log-type">[{log.type}]</span>
+                <span className="log-message">{log.message}</span>
               </div>
             ))
           )}
+          <div ref={logsEndRef} />
         </div>
       </div>
     </div>

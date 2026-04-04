@@ -76,7 +76,34 @@ An **adversarial patch** is a small pattern or sticker added to an image to **fo
 - Support human decision-making with alerts and explanations  
 
 ---
+## 🖼️ Clean vs Adversarial Image
 
+![Clean vs Adversarial](clean_vs_invisible_adv.png)
+
+### 🔍 Difference Between Clean and Adversarial Images
+
+- **Clean Image:**
+  - Normal image without any manipulation  
+  - Easily recognized by both humans and AI models  
+  - Contains natural features and patterns  
+
+- **Adversarial Image:**
+  - Contains specially designed perturbations or patches  
+  - These changes are often **invisible or very hard for human eyes to notice**  
+  - However, CNN models are highly sensitive to these small changes  
+ Even though the image looks the same to humans, the **CNN model processes pixel-level details** and gets misled by these hidden patterns.
+
+👉 This causes:
+- Wrong classification  
+- Misleading predictions  
+- Reduced reliability of AI systems  
+
+---
+
+### 🧠 Key Insight
+
+> Humans see the image globally, but CNN models analyze fine-grained pixel patterns.  
+> Adversarial patches exploit this difference to fool the model without being noticed by humans.
 ## ▶️ How to Run the Project
 
 ### 🔹 Start Backend (FastAPI)

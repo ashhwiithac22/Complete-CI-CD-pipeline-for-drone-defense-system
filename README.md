@@ -109,8 +109,7 @@ An **adversarial patch** is a small pattern or sticker added to an image to **fo
 ### 🔹 Start Backend (FastAPI)
 
 ```bash
-cd D:\PROJECTS\AI_Firewall_For_Drones
-venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 uvicorn backend.api:app --reload --port 8000
 ```
 Backend runs at:
@@ -122,7 +121,7 @@ Backend runs at:
 
 Open a new terminal:
 ```bash
-cd D:\PROJECTS\AI_Firewall_For_Drones\frontend
+cd frontend
 npm run dev
 ```
 

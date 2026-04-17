@@ -1,0 +1,17 @@
+venv/
+venv2/
+env/
+.env
+__pycache__/
+*.pyc
+.git/
+.gitignore
+*.md
+.vscode/
+.idea/
+victim_resnet50.pth
+*.pth
+frontend/node_modules/
+dataset/
+*.tar
+*.gz

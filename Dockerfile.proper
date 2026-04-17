@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install all dependencies including dotenv
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    python-multipart \
+    pillow \
+    numpy \
+    python-dotenv
+
+# Install torch and torchvision (CPU version)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Copy application code
+COPY backend/ ./backend/
+COPY models/firewall/firewall_cnn.pth ./models/firewall/
+
+# Fix model path
+RUN sed -i 's|BASE_DIR = "D:/PROJECTS/AI_Firewall_For_Drones"|BASE_DIR = "."|g' backend/api.py
+
+EXPOSE 8000
+
+CMD ["uvicorn", "backend.api:app", "--host", "0.0.0.0", "--port", "8000"]

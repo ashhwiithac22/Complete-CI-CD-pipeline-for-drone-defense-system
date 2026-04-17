@@ -1,0 +1,52 @@
+# Ultra-slim Dockerfile - Target <1GB
+FROM python:3.11-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    musl-dev \
+    jpeg-dev \
+    zlib-dev \
+    python3-dev
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install ONLY essential packages (NO torch - use CPU version)
+RUN pip install --no-cache-dir --user \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    python-multipart==0.0.6 \
+    pillow==10.1.0 \
+    numpy==1.24.3 \
+    python-dotenv==1.0.0
+
+# Final stage
+FROM python:3.11-alpine
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apk add --no-cache \
+    libjpeg-turbo \
+    libpng \
+    libstdc++ \
+    curl
+
+# Copy Python packages
+COPY --from=builder /root/.local /root/.local
+
+# Copy only necessary files (exclude large model)
+COPY backend/ ./backend/
+COPY models/firewall/firewall_cnn.pth ./models/firewall/
+
+# DO NOT copy victim_resnet50.pth (94MB)
+
+# Add to PATH
+ENV PATH=/root/.local/bin:$PATH
+
+EXPOSE 8000
+
+CMD ["uvicorn", "backend.api:app", "--host", "0.0.0.0", "--port", "8000"]

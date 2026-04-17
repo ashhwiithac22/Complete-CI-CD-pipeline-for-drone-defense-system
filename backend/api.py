@@ -22,7 +22,7 @@ load_dotenv()
 # ============================================================
 # CONFIGURATION
 # ============================================================
-BASE_DIR = "D:/PROJECTS/AI_Firewall_For_Drones"
+BASE_DIR = "."
 IMG_SIZE = 128
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")

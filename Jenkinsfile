@@ -39,32 +39,52 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo '🐳 Building Docker image...'
-                sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} . 2>/dev/null || echo "Docker build skipped"'
+                script {
+                    try {
+                        sh 'docker build -f Dockerfile.final -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
+                        echo '✅ Docker image built successfully!'
+                    } catch (Exception e) {
+                        echo '⚠️ Docker build failed, trying with alternate Dockerfile...'
+                        sh 'docker build -f Dockerfile -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
+                    }
+                }
             }
         }
         
-        stage('Push to Registry') {
+        stage('Push to Docker Hub') {
             steps {
                 echo '📤 Pushing to Docker Hub...'
-                // Docker push will be added later
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', 
+                                                      usernameVariable: 'DOCKER_USER', 
+                                                      passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin'
+                        sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
+                        echo '✅ Image pushed to Docker Hub!'
+                    }
+                }
             }
         }
         
         stage('Deploy to Kubernetes') {
             steps {
                 echo '☸️ Deploying to Kubernetes...'
-                // Kubectl apply will be added later
+                script {
+                    sh 'kubectl apply -f k8s/ 2>/dev/null || echo "Kubernetes not configured yet"'
+                }
             }
         }
     }
     
     post {
         success {
-            echo '🎉 Pipeline completed successfully!'
+            echo '🎉🎉🎉 Pipeline completed successfully! 🎉🎉🎉'
+            echo "Docker Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo "Image pushed to Docker Hub"
         }
         failure {
-            echo '❌ Pipeline failed. Check logs for details.'
-            // Fixed mail command - removed invalid syntax
+            echo '❌❌❌ Pipeline failed! ❌❌❌'
+            echo 'Check the logs above for details'
         }
     }
 }

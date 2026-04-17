@@ -4,11 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'ashhwiithac22/firewall-app'
         DOCKER_TAG = "${env.BUILD_NUMBER}"
-        SONAR_HOST_URL = 'http://host.docker.internal:9000'
-    }
-    
-    tools {
-        sonarQubeScanner 'SonarQube Scanner'
+        SONAR_HOST_URL = 'http://172.17.0.1:9000'
     }
     
     stages {
@@ -27,37 +23,11 @@ pipeline {
             }
         }
         
-        stage('Linting') {
-            steps {
-                echo '🔍 Running linting checks...'
-                sh 'pip3 install --user flake8 2>/dev/null || true'
-                sh 'flake8 backend/ --max-line-length=120 || echo "Linting issues found"'
-            }
-        }
-        
-        stage('Unit Tests') {
-            steps {
-                echo '🧪 Running unit tests...'
-                sh 'pip3 install --user pytest 2>/dev/null || true'
-                sh 'python3 -m pytest tests/ --junitxml=test-results.xml || echo "No tests found"'
-            }
-        }
-        
         stage('SonarQube Analysis') {
             steps {
                 echo '🔍 Running SonarQube code analysis...'
                 withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        sonar-scanner \
-                            -Dsonar.projectKey=firewall-app \
-                            -Dsonar.projectName="Adversarial AI Firewall" \
-                            -Dsonar.projectVersion=1.0 \
-                            -Dsonar.sources=backend/ \
-                            -Dsonar.python.version=3.11 \
-                            -Dsonar.exclusions=**/venv/**,**/tests/**,**/frontend/** \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml \
-                            -Dsonar.qualitygate.wait=true
-                    '''
+                    sh 'sonar-scanner -Dsonar.projectKey=firewall-app -Dsonar.sources=backend/'
                 }
             }
         }

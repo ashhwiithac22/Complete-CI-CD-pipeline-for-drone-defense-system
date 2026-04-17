@@ -1,6 +1,6 @@
 ---
-- name: Setup Docker and Kubernetes environment
-  hosts: all
+- name: Setup DevOps Environment
+  hosts: localhost
   become: yes
   
   tasks:
@@ -24,7 +24,7 @@
         name: kubectl
         classic: yes
     
-    - name: Install minikube
+    - name: Install Minikube
       get_url:
         url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
         dest: /usr/local/bin/minikube
@@ -39,3 +39,46 @@
       pip:
         name: docker
         state: present
+    
+    - name: Install Jenkins dependencies
+      apt:
+        name:
+          - openjdk-17-jre
+          - curl
+        state: present
+    
+    - name: Download Jenkins
+      get_url:
+        url: https://get.jenkins.io/war-stable/latest/jenkins.war
+        dest: /opt/jenkins.war
+        mode: '0755'
+    
+    - name: Create Jenkins user
+      user:
+        name: jenkins
+        system: yes
+        shell: /bin/bash
+    
+    - name: Create Jenkins service
+      copy:
+        dest: /etc/systemd/system/jenkins.service
+        content: |
+          [Unit]
+          Description=Jenkins Server
+          After=network.target
+          
+          [Service]
+          User=jenkins
+          ExecStart=/usr/bin/java -jar /opt/jenkins.war --httpPort=8080
+          Restart=always
+          
+          [Install]
+          WantedBy=multi-user.target
+      notify: start jenkins
+    
+  handlers:
+    - name: start jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes

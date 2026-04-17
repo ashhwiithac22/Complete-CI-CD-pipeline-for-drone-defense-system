@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: firewall-app
-  labels:
-    app: firewall-app
 spec:
   replicas: 2
   strategy:
@@ -22,7 +20,7 @@ spec:
       containers:
       - name: app
         image: ashhwiithac22/firewall-app:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
         resources:

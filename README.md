@@ -10,10 +10,6 @@ The Adversarial AI Firewall uses a PyTorch-based deep learning model to classify
 
 ---
 
-## 🏗️ Architecture Overview
-
----
-
 ## 🛠️ Technologies Used
 
 | Category | Technologies |
